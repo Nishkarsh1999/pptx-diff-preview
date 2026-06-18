@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { compare } from "./api";
 import type { CompareResponse, SlideResult, SlideStatus } from "./types";
 
@@ -30,6 +30,20 @@ export default function SlideDiffViewer() {
   const [filter, setFilter] = useState<Filter>("all");
   const [tab, setTab] = useState<Tab>("sidebyside");
   const [showRaw, setShowRaw] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  // Close the expanded overlay on Escape; lock body scroll while it is open.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [expanded]);
 
   async function runCompare() {
     if (!oldFile || !newFile) return;
@@ -195,20 +209,32 @@ export default function SlideDiffViewer() {
                   </div>
 
                   {tab === "sidebyside" && (
-                    <div className="sidebyside">
-                      <figure>
-                        <figcaption>Old (deletions in red)</figcaption>
-                        {current.old_image
-                          ? <img src={current.old_image} alt={`old slide ${current.old_slide}`} />
-                          : <div className="no-image">No old slide</div>}
-                      </figure>
-                      <figure>
-                        <figcaption>New (insertions in green)</figcaption>
-                        {current.new_image
-                          ? <img src={current.new_image} alt={`new slide ${current.new_slide}`} />
-                          : <div className="no-image">No new slide</div>}
-                      </figure>
-                    </div>
+                    <>
+                      <div className="sidebyside-toolbar">
+                        <button
+                          className="ghost expand-btn"
+                          onClick={() => setExpanded(true)}
+                          disabled={!current.old_image && !current.new_image}
+                          title="Expand both slides to full screen"
+                        >
+                          ⤢ Expand
+                        </button>
+                      </div>
+                      <div className="sidebyside">
+                        <figure>
+                          <figcaption>Old (deletions in red)</figcaption>
+                          {current.old_image
+                            ? <img src={current.old_image} alt={`old slide ${current.old_slide}`} />
+                            : <div className="no-image">No old slide</div>}
+                        </figure>
+                        <figure>
+                          <figcaption>New (insertions in green)</figcaption>
+                          {current.new_image
+                            ? <img src={current.new_image} alt={`new slide ${current.new_slide}`} />
+                            : <div className="no-image">No new slide</div>}
+                        </figure>
+                      </div>
+                    </>
                   )}
 
                   {tab === "changes" && (
@@ -258,6 +284,31 @@ export default function SlideDiffViewer() {
             </main>
           </div>
         </>
+      )}
+
+      {expanded && current && (
+        <div className="lightbox" onClick={() => setExpanded(false)}>
+          <div className="lightbox-bar">
+            <span className="lightbox-title">Slide {mapping(current)}</span>
+            <button className="lightbox-close" onClick={() => setExpanded(false)} title="Close (Esc)">
+              ✕ Close
+            </button>
+          </div>
+          <div className="lightbox-body" onClick={(e) => e.stopPropagation()}>
+            <figure>
+              <figcaption>Old (deletions in red)</figcaption>
+              {current.old_image
+                ? <img src={current.old_image} alt={`old slide ${current.old_slide}`} />
+                : <div className="no-image">No old slide</div>}
+            </figure>
+            <figure>
+              <figcaption>New (insertions in green)</figcaption>
+              {current.new_image
+                ? <img src={current.new_image} alt={`new slide ${current.new_slide}`} />
+                : <div className="no-image">No new slide</div>}
+            </figure>
+          </div>
+        </div>
       )}
     </div>
   );

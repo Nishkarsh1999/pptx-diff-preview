@@ -178,6 +178,43 @@ def test_formatting_preserved_on_changed_paragraph(tmp_path):
     assert _colored_runs(new_prs.slides[0], GREEN) == ["Hi"]
 
 
+def _add_two_box_slide(prs, top_text, bottom_text, top_first_in_xml=True):
+    """Slide with two textboxes (one high, one low). `top_first_in_xml` controls
+    the order they are appended to the shape tree, independently of their
+    on-slide position — to simulate decks authored in different document order."""
+    slide = prs.slides.add_slide(prs.slide_layouts[BLANK])
+    if top_first_in_xml:
+        hi = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(1))
+        lo = slide.shapes.add_textbox(Inches(0.5), Inches(4.0), Inches(9), Inches(1))
+    else:
+        lo = slide.shapes.add_textbox(Inches(0.5), Inches(4.0), Inches(9), Inches(1))
+        hi = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(1))
+    hi.text_frame.text = top_text
+    lo.text_frame.text = bottom_text
+    return slide
+
+
+def test_reordered_shapes_diff_word_accurately(tmp_path):
+    """Regression: a near-identical block that sits in a different *document*
+    order across the two decks must still diff word-by-word, not collapse into a
+    wholesale add+remove. Geometric (top,left) flatten order makes the two boxes
+    line up regardless of shape-tree order."""
+    op = Presentation()
+    _add_two_box_slide(op, "page 1 of 4", "Vision deep text", top_first_in_xml=True)
+    np_ = Presentation()
+    # Same layout, but the boxes are appended bottom-first in the XML.
+    _add_two_box_slide(np_, "page 1 of 5", "Vision deep text", top_first_in_xml=False)
+    old_path = _save(op, tmp_path, "old.pptx")
+    new_path = _save(np_, tmp_path, "new.pptx")
+    old_prs, new_prs, entries = build_marked_decks(old_path, new_path)
+
+    # Only "4"->"5" should be flagged, not the whole block.
+    assert _colored_runs(old_prs.slides[0], RED) == ["4"]
+    assert _colored_runs(new_prs.slides[0], GREEN) == ["5"]
+    types = {c["type"] for c in entries[0].changes}
+    assert types == {"changed"}, f"expected a single word change, got {entries[0].changes}"
+
+
 def test_whitespace_only_change_suppressed(tmp_path):
     """'Q1  results' -> 'Q1 results' (double space collapsed) : no color."""
     old_prs, new_prs, entries = _diff(tmp_path, ["Q1  results"], ["Q1 results"])

@@ -63,11 +63,30 @@ _WORD_RE = re.compile(r"\s+|\S+")
 # Flatten a slide into an ordered token stream
 # --------------------------------------------------------------------------- #
 
+def _shape_sort_key(sh):
+    """Geometric reading order: top, then left. The flatten order MUST be the
+    same for a given visual box across both decks, otherwise SequenceMatcher
+    (which cannot represent a move) reports a reordered-but-near-identical block
+    as a wholesale delete+insert instead of in-place word edits. Document/XML
+    order is not stable across files that were authored or rebuilt separately,
+    so we order by on-slide position instead. Unset positions (some
+    placeholders) sort last but keep their relative document order via the
+    enumeration index tiebreaker."""
+    top = getattr(sh, "top", None)
+    left = getattr(sh, "left", None)
+    BIG = 1 << 62  # push unpositioned shapes to the end, deterministically
+    return (top if top is not None else BIG, left if left is not None else BIG)
+
+
 def _iter_text_frames(shapes):
     """Yield every text frame on a slide, recursing into groups and tables,
-    in document order. Uses getattr guards so shapes lacking has_table /
-    has_text_frame (pictures, connectors, ...) are simply skipped."""
-    for sh in shapes:
+    in geometric reading order (top, then left). Uses getattr guards so shapes
+    lacking has_table / has_text_frame (pictures, connectors, ...) are simply
+    skipped."""
+    ordered = sorted(
+        enumerate(shapes), key=lambda iv: (_shape_sort_key(iv[1]), iv[0])
+    )
+    for _, sh in ordered:
         try:
             is_group = sh.shape_type == MSO_SHAPE_TYPE.GROUP
         except Exception:
