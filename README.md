@@ -75,7 +75,7 @@ docker compose up --build
 ```
 
 - Frontend: <http://localhost:8080>
-- Backend API: <http://localhost:8000> (`/health`, `/api/compare`)
+- Backend API: <http://localhost:8001> (`/health`, `/api/compare`)
 
 The frontend container serves the built SPA via nginx and proxies `/api` to the
 backend container, so there is nothing else to configure.
@@ -109,7 +109,7 @@ npm install
 npm run dev
 ```
 
-Vite serves on <http://localhost:5173> and proxies `/api` to `http://localhost:8000`
+Vite serves on <http://localhost:5173> and proxies `/api` to `http://localhost:8001`
 during development (see `vite.config.ts`). To point the frontend at a different
 backend, set `VITE_API_URL` before building, e.g. `VITE_API_URL=https://api.example.com`.
 
