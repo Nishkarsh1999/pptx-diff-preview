@@ -1,0 +1,12 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+python-pptx>=1.0.2
+scipy>=1.11
+numpy>=1.26
+
+# Optional AI summary providers. NOT required: if ENABLE_AI_SUMMARY=true but the
+# package is missing or the call fails, the app silently falls back to the
+# deterministic summary. Uncomment the one you use.
+# anthropic>=0.39
+# openai>=1.30
